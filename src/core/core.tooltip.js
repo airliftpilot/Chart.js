@@ -500,6 +500,21 @@ module.exports = function(Chart) {
 
 			return pt;
 		},
+		getBackgroundColor: function(options, vm, active) {
+			var options = this._options;
+			var vm = this._view;
+			var active = this._active;
+			var bgColor = vm.backgroundColor;
+			if(options.barBackgroundColor && active.length > 0) {
+				bgColor = active[0]._view.backgroundColor;
+				vm.backgroundColor = bgColor;
+			}
+			return helpers.color(bgColor);
+		},
+		hasContent: function() {
+			var vm = this._view;
+			return vm.title.length || vm.beforeBody.length || vm.afterBody.length || vm.footer.length;
+		},
 		drawCaret: function(tooltipPoint, size, opacity) {
 			var vm = this._view;
 			var ctx = this._chart.ctx;
@@ -555,7 +570,7 @@ module.exports = function(Chart) {
 				}
 			}
 
-			var bgColor = helpers.color(vm.backgroundColor);
+			var bgColor = this.getBackgroundColor();
 			ctx.fillStyle = bgColor.alpha(opacity * bgColor.alpha()).rgbString();
 			ctx.beginPath();
 			ctx.moveTo(x1, y1);
@@ -565,8 +580,7 @@ module.exports = function(Chart) {
 			ctx.fill();
 		},
 		drawTitle: function(pt, vm, ctx, opacity) {
-			var title = vm.title;
-
+			var title = vm.title;	
 			if (title.length) {
 				ctx.textAlign = vm._titleAlign;
 				ctx.textBaseline = "top";
@@ -580,7 +594,13 @@ module.exports = function(Chart) {
 
 				var i, len;
 				for (i = 0, len = title.length; i < len; ++i) {
-					ctx.fillText(title[i], pt.x, pt.y);
+					if(typeof title[i] == 'object') {
+						ctx.fillStyle = helpers.color(title[i].color).rgbString();
+						ctx.fillText(title[i].content, pt.x, pt.y);
+					} else {
+						ctx.fillText(title[i], pt.x, pt.y);
+					}
+
 					pt.y += titleFontSize + titleSpacing; // Line Height and spacing
 
 					if (i + 1 === title.length) {
@@ -605,7 +625,12 @@ module.exports = function(Chart) {
 			// Before Body
 			var xLinePadding = 0;
 			var fillLineOfText = function(line) {
-				ctx.fillText(line, pt.x + xLinePadding, pt.y);
+				if(typeof line == 'object') {
+					ctx.fillStyle = helpers.color(line.color).rgbString();
+					ctx.fillText(line.content, pt.x + xLinePadding, pt.y);
+				} else {
+					ctx.fillText(line, pt.x + xLinePadding, pt.y);
+				}
 				pt.y += bodyFontSize + bodySpacing;
 			};
 
@@ -664,7 +689,12 @@ module.exports = function(Chart) {
 				ctx.font = helpers.fontString(vm.footerFontSize, vm._footerFontStyle, vm._footerFontFamily);
 
 				helpers.each(footer, function(line) {
-					ctx.fillText(line, pt.x, pt.y);
+					if(typeof line == 'object') {
+						ctx.fillStyle = helpers.color(line.color).rgbString();
+						ctx.fillText(line.content, pt.x, pt.y);
+					} else {
+						ctx.fillText(line, pt.x, pt.y);
+					}
 					pt.y += vm.footerFontSize + vm.footerSpacing;
 				});
 			}
@@ -685,10 +715,9 @@ module.exports = function(Chart) {
 
 			// IE11/Edge does not like very small opacities, so snap to 0
 			var opacity = Math.abs(vm.opacity < 1e-3) ? 0 : vm.opacity;
-
-			if (this._options.enabled) {
+			if (this._options.enabled && this.hasContent()) {
 				// Draw Background
-				var bgColor = helpers.color(vm.backgroundColor);
+				var bgColor = this.getBackgroundColor();
 				ctx.fillStyle = bgColor.alpha(opacity * bgColor.alpha()).rgbString();
 				helpers.drawRoundedRectangle(ctx, pt.x, pt.y, tooltipSize.width, tooltipSize.height, vm.cornerRadius);
 				ctx.fill();
